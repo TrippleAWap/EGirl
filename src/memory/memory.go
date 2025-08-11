@@ -291,6 +291,8 @@ func InterfaceToBytes(V any) []byte {
 	if err := binary.Write(&buf, binary.LittleEndian, V); err != nil {
 		panic(err)
 	}
-	helpers.LogF("%v, %v\n", v, buf.Bytes())
+	//helpers.LogF("%v, %v\n", v, buf.Bytes())
 	return buf.Bytes()
 }
+
+var GlobalManager = Manager{}

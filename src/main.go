@@ -3,7 +3,9 @@ package main
 import (
 	"EGirl/helpers"
 	"EGirl/memory"
+	"EGirl/modules"
 	_ "EGirl/modules"
+	_ "EGirl/modules/visual"
 	"github.com/bi-zone/go-fileversion"
 	"golang.org/x/sys/windows"
 	"os"
@@ -26,15 +28,6 @@ const (
 var (
 	SupportedVersions = []string{
 		"1.21.100.6",
-	}
-	Pointers = map[string]map[string]func(*memory.Manager) (uintptr, error){
-		"1.21.100.6": {
-			"Brightness": func(memManager *memory.Manager) (uintptr, error) {
-				v, err := memManager.ReadPointer(memManager.BaseModule.ModBaseAddr, []uintptr{0x9083788, 0x188, 0x40, 0x1B0})
-				v += 0x18
-				return v, err
-			},
-		},
 	}
 )
 
@@ -79,65 +72,29 @@ func main() {
 		return
 	}
 	helpers.LogF("Base Module: 0x%X\n", baseModule.ModBaseAddr)
-	memManager := memory.Manager{}
-	defer memManager.Cleanup()
-	if err := memManager.OpenProcess(targetPID); err != nil {
+	defer memory.GlobalManager.Cleanup()
+	if err := memory.GlobalManager.OpenProcess(targetPID); err != nil {
 		helpers.LogF("We've encountered an error while opening the process handle. | %+v\n", err.Error())
 		os.Exit(1)
 	}
 
-	if err := memManager.LoadProcessMemory(); err != nil {
+	if err := memory.GlobalManager.LoadProcessMemory(); err != nil {
 		helpers.LogF("We've encountered an error while loading the process memory. | %+v\n", err.Error())
 		os.Exit(1)
 	}
 	helpers.LogF("Process memory loaded successfully.\n")
 
-	// read brightness;
+	for _, f := range modules.AfterStartupFuncs {
+		go f()
+	}
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	func() {
-		defer wg.Done()
-		//for ptrName, ptrFunc := range Pointers[GAME_VERSION] {
-		//	helpers.LogF("Resolving '%s' for '%s'", ptrName, GAME_VERSION)
-		//	ptr, err := ptrFunc(&memManager)
-		//	if err != nil {
-		//		helpers.LogF("failed to get '%s' pointer: %+v\n", ptrName, err)
-		//		return
-		//	}
-		//}
-		brightnessPtr, err := Pointers[GAME_VERSION]["Brightness"](&memManager)
-		if err != nil {
-			helpers.LogF("failed to get '%s' pointer: %+v\n", "brightnessPtr", err)
-			return
-		}
-		helpers.LogF("found brightnessPtr, 0x%X\n", brightnessPtr)
-		var brightness float32
-		if err := memManager.Read(brightnessPtr, &brightness); err != nil {
-			helpers.LogF("failed to get brightness value: %+v\n", err)
-			return
-		}
-		var brightnessF = make([]byte, 4)
-		if err := memManager.Read(brightnessPtr, &brightnessF); err != nil {
-			helpers.LogF("failed to get brightness value: %+v\n", err)
-			return
-		}
-		helpers.LogF("found brightness value, %f, %v\n", brightness, brightnessF)
-		helpers.LogF("toggling full-bright!\n")
-		if err := memManager.Write(brightnessPtr, float32(10)); err != nil {
-			helpers.LogF("failed to set brightness value: %+v\n", err)
-		}
-		if err := memManager.Read(brightnessPtr, &brightness); err != nil {
-			helpers.LogF("failed to get brightness value: %+v\n", err)
-			return
-		}
-		helpers.LogF("updated brightness value, %f\n", brightness)
-	}()
-	wg.Add(1)
-	func() {
+	go func() {
 		defer wg.Done()
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
 		_ = <-c
 	}()
+
 	wg.Wait()
 }
