@@ -1,11 +1,11 @@
-package main
+package helpers
 
 import (
 	"golang.org/x/sys/windows"
 	"unsafe"
 )
 
-func getProcessID(name string) (int, error) {
+func GetProcessID(name string) (int, error) {
 	handle, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
 	if err != nil {
 		return -1, err

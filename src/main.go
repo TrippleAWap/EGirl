@@ -2,6 +2,7 @@ package main
 
 import (
 	"EGirl/helpers"
+	"EGirl/memory"
 	_ "EGirl/modules"
 	"github.com/bi-zone/go-fileversion"
 	"golang.org/x/sys/windows"
@@ -24,10 +25,10 @@ var (
 	SupportedVersions = []string{
 		"1.21.100.6",
 	}
-	Pointers = map[string]map[string]func(*MemoryManager) (uintptr, error){
+	Pointers = map[string]map[string]func(*memory.Manager) (uintptr, error){
 		"1.21.100.6": {
-			"Brightness": func(memManager *MemoryManager) (uintptr, error) {
-				v, err := memManager.ReadPointer(memManager.baseModule.ModBaseAddr, []uintptr{0x9083788, 0x188, 0x40, 0x1B0})
+			"Brightness": func(memManager *memory.Manager) (uintptr, error) {
+				v, err := memManager.ReadPointer(memManager.BaseModule.ModBaseAddr, []uintptr{0x9083788, 0x188, 0x40, 0x1B0})
 				v += 0x18
 				return v, err
 			},
@@ -41,13 +42,13 @@ func init() {
 }
 
 func main() {
-	defer PanicDisplay()
+	defer helpers.PanicDisplay()
 	targetPID := -1
 	var err error
 	helpers.LogF("Starting %s v%s (%s)...\n", NAME, VERSION, BRANCH)
 	helpers.LogF("Getting process ID for Minecraft.Windows.exe...\n")
 	for targetPID < 0 {
-		targetPID, err = getProcessID("Minecraft.Windows.exe")
+		targetPID, err = helpers.GetProcessID("Minecraft.Windows.exe")
 		if err != nil {
 			helpers.LogF("We've encountered an error while getting the process id. | %+v\n", err.Error())
 			os.Exit(1)
@@ -55,7 +56,7 @@ func main() {
 		time.Sleep(time.Millisecond * 100)
 	}
 	helpers.LogF("Minecraft.Windows.exe found with PID: %d\n", targetPID)
-	baseModule, err := getBaseModule(targetPID)
+	baseModule, err := memory.GetBaseModule(targetPID)
 	if err != nil {
 		helpers.LogF("We've encountered an error while getting the base module. | %+v\n", err.Error())
 		os.Exit(1)
@@ -76,7 +77,7 @@ func main() {
 		return
 	}
 	helpers.LogF("Base Module: 0x%X\n", baseModule.ModBaseAddr)
-	memManager := MemoryManager{}
+	memManager := memory.Manager{}
 	defer memManager.Cleanup()
 	if err := memManager.OpenProcess(targetPID); err != nil {
 		helpers.LogF("We've encountered an error while opening the process handle. | %+v\n", err.Error())
@@ -110,9 +111,14 @@ func main() {
 			helpers.LogF("failed to get brightness value: %+v\n", err)
 			return
 		}
-		helpers.LogF("found brightness value, %f\n", brightness)
+		var brightnessF = make([]byte, 4)
+		if err := memManager.Read(brightnessPtr, &brightnessF); err != nil {
+			helpers.LogF("failed to get brightness value: %+v\n", err)
+			return
+		}
+		helpers.LogF("found brightness value, %f, %v\n", brightness, brightnessF)
 		helpers.LogF("toggling full-bright!\n")
-		if err := memManager.Write(brightnessPtr, &brightness); err != nil {
+		if err := memManager.Write(brightnessPtr, float32(10)); err != nil {
 			helpers.LogF("failed to set brightness value: %+v\n", err)
 		}
 		if err := memManager.Read(brightnessPtr, &brightness); err != nil {

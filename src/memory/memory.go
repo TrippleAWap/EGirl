@@ -1,6 +1,8 @@
-package main
+package memory
 
 import (
+	"EGirl/helpers"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -11,7 +13,7 @@ import (
 	"unsafe"
 )
 
-func getBaseModule(pid int) (*windows.ModuleEntry32, error) {
+func GetBaseModule(pid int) (*windows.ModuleEntry32, error) {
 	baseModule := windows.ModuleEntry32{
 		Size: uint32(unsafe.Sizeof(windows.ModuleEntry32{})),
 	}
@@ -27,29 +29,29 @@ func getBaseModule(pid int) (*windows.ModuleEntry32, error) {
 	return &baseModule, nil
 }
 
-type MemoryManager struct {
-	hProcess      windows.Handle
-	pId           int
-	processMemory []byte
-	baseModule    *windows.ModuleEntry32
-	memoryPatches map[uintptr][]byte
+type Manager struct {
+	HProcess      windows.Handle
+	PId           int
+	ProcessMemory []byte
+	BaseModule    *windows.ModuleEntry32
+	MemoryPatches map[uintptr][]byte
 }
 
-func (m *MemoryManager) OpenProcess(pid int) error {
-	m.pId = pid
+func (m *Manager) OpenProcess(pid int) error {
+	m.PId = pid
 	handle, err := windows.OpenProcess(windows.PROCESS_VM_WRITE|windows.PROCESS_VM_READ|windows.PROCESS_VM_OPERATION, false, uint32(pid))
 	if err != nil {
 		return err
 	}
-	m.hProcess = handle
-	m.baseModule, err = getBaseModule(pid)
+	m.HProcess = handle
+	m.BaseModule, err = GetBaseModule(pid)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *MemoryManager) Read(address uintptr, output interface{}) error {
+func (m *Manager) Read(address uintptr, output any) error {
 	rv := reflect.ValueOf(output)
 	if rv.Kind() != reflect.Ptr {
 		return errors.New("output must be a pointer to struct")
@@ -74,7 +76,7 @@ func (m *MemoryManager) Read(address uintptr, output interface{}) error {
 
 	buffer := make([]byte, size)
 	var read uintptr
-	if err := windows.ReadProcessMemory(m.hProcess, address, &buffer[0], size, &read); err != nil {
+	if err := windows.ReadProcessMemory(m.HProcess, address, &buffer[0], size, &read); err != nil {
 		return err
 	}
 	if read != size {
@@ -171,41 +173,36 @@ func setFloat64FromBytes(v reflect.Value, elem reflect.Value) error {
 	return nil
 }
 
-func (m *MemoryManager) Write(address uintptr, data interface{}) error {
-	val := reflect.ValueOf(data)
-	if reflect.TypeOf(data).Kind() == reflect.Ptr {
-		val = val.Elem()
-	}
-	size := val.Type().Size()
-
+func (m *Manager) Write(address uintptr, data any) error {
+	dataB := InterfaceToBytes(data)
+	size := uintptr(len(dataB))
 	var oldProtection uint32
-	if err := windows.VirtualProtectEx(m.hProcess, address, size, windows.PAGE_EXECUTE_READWRITE, &oldProtection); err != nil {
+	if err := windows.VirtualProtectEx(m.HProcess, address, size, windows.PAGE_EXECUTE_READWRITE, &oldProtection); err != nil {
 		return err
 	}
-	valueP := val
 	var write uintptr
-	if err := windows.WriteProcessMemory(m.hProcess, address, (*byte)(unsafe.Pointer(&valueP)), size, &write); err != nil {
+	if err := windows.WriteProcessMemory(m.HProcess, address, &dataB[0], size, &write); err != nil {
 		return err
 	}
-	if err := windows.VirtualProtectEx(m.hProcess, address, size, oldProtection, &oldProtection); err != nil {
+	if err := windows.VirtualProtectEx(m.HProcess, address, size, oldProtection, &oldProtection); err != nil {
 		return err
 	}
 
 	if write != size {
 		return windows.ERROR_PARTIAL_COPY
 	}
-	if _, ok := m.memoryPatches[address]; !ok {
+	if _, ok := m.MemoryPatches[address]; !ok {
 		output := make([]byte, size)
 		if err := m.Read(address, &output); err != nil {
 			return err
 		}
-		m.memoryPatches[address] = output
+		m.MemoryPatches[address] = output
 	}
 	return nil
 }
 
-func (m *MemoryManager) LoadProcessMemory() error {
-	baseModule, err := getBaseModule(m.pId)
+func (m *Manager) LoadProcessMemory() error {
+	baseModule, err := GetBaseModule(m.PId)
 	if err != nil {
 		return err
 	}
@@ -214,21 +211,21 @@ func (m *MemoryManager) LoadProcessMemory() error {
 	if err != nil {
 		return err
 	}
-	m.processMemory = processMemoryV
-	m.memoryPatches = make(map[uintptr][]byte)
+	m.ProcessMemory = processMemoryV
+	m.MemoryPatches = make(map[uintptr][]byte)
 	return nil
 }
 
 // Scan finds a signature in the process memory and returns the address of the first match.
-func (m *MemoryManager) Scan(pattern []byte, mask string) uintptr {
+func (m *Manager) Scan(pattern []byte, mask string) uintptr {
 	var result uintptr = 0
 
 scanForSegment:
-	for i := 0; i <= len(m.processMemory)-len(pattern); i++ {
+	for i := 0; i <= len(m.ProcessMemory)-len(pattern); i++ {
 		for j := 0; j < len(pattern); j++ {
-			if (pattern[j] == '?' && mask[j] == '?') || m.processMemory[i+j] == pattern[j] {
+			if (pattern[j] == '?' && mask[j] == '?') || m.ProcessMemory[i+j] == pattern[j] {
 				if j == len(pattern)-1 {
-					result = uintptr(i) + m.baseModule.ModBaseAddr
+					result = uintptr(i) + m.BaseModule.ModBaseAddr
 					break scanForSegment
 				}
 			} else {
@@ -239,7 +236,7 @@ scanForSegment:
 	return result
 }
 
-func (m *MemoryManager) ReadPointer(address uintptr, pointers []uintptr) (uintptr, error) {
+func (m *Manager) ReadPointer(address uintptr, pointers []uintptr) (uintptr, error) {
 	var r uintptr
 	addr := address
 	for _, pointer := range pointers {
@@ -253,28 +250,45 @@ func (m *MemoryManager) ReadPointer(address uintptr, pointers []uintptr) (uintpt
 	return r, nil
 }
 
-func (m *MemoryManager) Restore(address uintptr) error {
-	if _, ok := m.memoryPatches[address]; !ok {
+func (m *Manager) Restore(address uintptr) error {
+	if _, ok := m.MemoryPatches[address]; !ok {
 		return fmt.Errorf("address not patched: 0x%x", address)
 	}
-	if err := m.Write(address, m.memoryPatches[address]); err != nil {
+	if err := m.Write(address, m.MemoryPatches[address]); err != nil {
 		return err
 	}
-	delete(m.memoryPatches, address)
+	delete(m.MemoryPatches, address)
 	return nil
 }
 
-func (m *MemoryManager) Cleanup() error {
-	if m.hProcess != 0 {
-		for address := range m.memoryPatches {
+func (m *Manager) Cleanup() error {
+	if m.HProcess != 0 {
+		for address := range m.MemoryPatches {
 			if err := m.Restore(address); err != nil {
 				fmt.Println(err)
 			}
 		}
-		if err := windows.CloseHandle(m.hProcess); err != nil {
+		if err := windows.CloseHandle(m.HProcess); err != nil {
 			return err
 		}
-		m.hProcess = 0
+		m.HProcess = 0
 	}
 	return nil
+}
+
+// https://stackoverflow.com/questions/43693360/convert-float64-to-byte-array
+func InterfaceToBytes(V any) []byte {
+	v := reflect.ValueOf(V)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	if v.Kind() == reflect.Slice || v.Kind() == reflect.Array {
+		return v.Interface().([]byte)
+	}
+	var buf bytes.Buffer
+	if err := binary.Write(&buf, binary.LittleEndian, V); err != nil {
+		panic(err)
+	}
+	helpers.LogF("%v, %v\n", v, buf.Bytes())
+	return buf.Bytes()
 }

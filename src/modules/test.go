@@ -1,7 +1,11 @@
 package modules
 
-import "EGirl/helpers"
+import (
+	"EGirl/helpers"
+	"EGirl/memory"
+	"math"
+)
 
 func init() {
-	helpers.LogF("asd\n")
+	helpers.LogF("%+v\n", memory.InterfaceToBytes(float32(math.MaxFloat32)))
 }
