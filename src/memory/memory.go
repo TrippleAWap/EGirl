@@ -176,6 +176,13 @@ func setFloat64FromBytes(v reflect.Value, elem reflect.Value) error {
 func (m *Manager) Write(address uintptr, data any) error {
 	dataB := InterfaceToBytes(data)
 	size := uintptr(len(dataB))
+	if _, ok := m.MemoryPatches[address]; !ok {
+		output := make([]byte, size)
+		if err := m.Read(address, &output); err != nil {
+			return err
+		}
+		m.MemoryPatches[address] = output
+	}
 	var oldProtection uint32
 	if err := windows.VirtualProtectEx(m.HProcess, address, size, windows.PAGE_EXECUTE_READWRITE, &oldProtection); err != nil {
 		return err
@@ -191,13 +198,7 @@ func (m *Manager) Write(address uintptr, data any) error {
 	if write != size {
 		return windows.ERROR_PARTIAL_COPY
 	}
-	if _, ok := m.MemoryPatches[address]; !ok {
-		output := make([]byte, size)
-		if err := m.Read(address, &output); err != nil {
-			return err
-		}
-		m.MemoryPatches[address] = output
-	}
+
 	return nil
 }
 
@@ -264,6 +265,7 @@ func (m *Manager) Restore(address uintptr) error {
 func (m *Manager) Cleanup() error {
 	if m.HProcess != 0 {
 		for address := range m.MemoryPatches {
+			helpers.LogF("Restored Address 0x%X to %v\n", address, m.MemoryPatches[address])
 			if err := m.Restore(address); err != nil {
 				fmt.Println(err)
 			}

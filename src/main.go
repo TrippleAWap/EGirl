@@ -7,7 +7,9 @@ import (
 	"github.com/bi-zone/go-fileversion"
 	"golang.org/x/sys/windows"
 	"os"
+	"os/signal"
 	"slices"
+	"sync"
 	"time"
 )
 
@@ -91,7 +93,10 @@ func main() {
 	helpers.LogF("Process memory loaded successfully.\n")
 
 	// read brightness;
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 	func() {
+		defer wg.Done()
 		//for ptrName, ptrFunc := range Pointers[GAME_VERSION] {
 		//	helpers.LogF("Resolving '%s' for '%s'", ptrName, GAME_VERSION)
 		//	ptr, err := ptrFunc(&memManager)
@@ -127,4 +132,12 @@ func main() {
 		}
 		helpers.LogF("updated brightness value, %f\n", brightness)
 	}()
+	wg.Add(1)
+	func() {
+		defer wg.Done()
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		_ = <-c
+	}()
+	wg.Wait()
 }
