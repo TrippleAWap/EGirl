@@ -53,22 +53,21 @@ var (
 	AfterStartupFuncs []func()
 )
 
-func GetAllModules() []*Module {
-	return modules
-}
-
-func init() {
+func RegisterHandles() {
 	go func() {
+		defer helpers.PanicDisplay()
 		for {
 			for _, m := range modules {
 				if m.OnTick == nil {
 					continue
 				}
-				go m.OnTick(m)
+				m.OnTick(m)
 			}
 			time.Sleep(time.Millisecond * 20)
 		}
 	}()
+
+	go initializeKeyHook()
 }
 
 func RegisterModule(module *Module) {

@@ -8,8 +8,10 @@ import (
 	"unsafe"
 )
 
-var user32 = syscall.NewLazyDLL("user32.dll")
-var MessageBox = user32.NewProc("MessageBoxW")
+var (
+	user32     = syscall.NewLazyDLL("user32.dll")
+	MessageBox = user32.NewProc("MessageBoxW")
+)
 
 func PanicDisplay() {
 	if r := recover(); r != nil {

@@ -179,6 +179,9 @@ func (m *Manager) Write(address uintptr, data any) error {
 	if _, ok := m.MemoryPatches[address]; !ok {
 		output := make([]byte, size)
 		if err := m.Read(address, &output); err != nil {
+			if err.Error() == "Access is denied." {
+				panic("Minecraft.Windows.exe was terminated!")
+			}
 			return err
 		}
 		m.MemoryPatches[address] = output

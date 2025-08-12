@@ -24,11 +24,7 @@ func init() {
 			Description: "meow meow fullbright",
 			KeyBind:     'K',
 			OnTick: func(module *modules.Module) {
-				helpers.LogF("meow\n")
 				if err := memory.GlobalManager.Write(brightnessPtr, float32(10)); err != nil {
-					if err.Error() == "Access is denied." {
-						panic("Minecraft.Windows.exe was terminated!")
-					}
 					helpers.LogF("failed to set brightness value: %+v\n", err)
 				}
 			},

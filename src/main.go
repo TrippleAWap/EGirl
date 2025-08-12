@@ -87,6 +87,7 @@ func main() {
 	for _, f := range modules.AfterStartupFuncs {
 		go f()
 	}
+	modules.RegisterHandles()
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
