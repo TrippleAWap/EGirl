@@ -37,6 +37,7 @@ const (
 	WH_KEYBOARD    = 2
 	WH_KEYBOARD_LL = 13
 	WM_KEYDOWN     = 256
+	WM_KEYUP       = 257
 )
 
 type KBDLLHOOKSTRUCT struct {
@@ -48,14 +49,22 @@ type KBDLLHOOKSTRUCT struct {
 }
 
 func keyboardCallback(nCode int, wParam uintptr, lParam uintptr) uintptr {
-	if onTargetWindow && nCode >= 0 && wParam == WM_KEYDOWN {
+	go UpdateOnTargetWindow()
+	if onTargetWindow && nCode >= 0 && wParam == WM_KEYUP {
 		kb := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
 		r := rune(kb.VkCode)
 		if printableASCII(r) {
 			keyChar := string(r)
 			helpers.LogF("%s\n", keyChar)
+			for _, m := range modules {
+				if m.KeyBind == r {
+					helpers.LogF("%s: %s \n", m.Name, m.Enabled)
+					ToggleModule(m)
+				}
+			}
 		}
 	}
+
 	ret, _, _ := procCallNextHookEx.Call(keyboardHook, uintptr(nCode), wParam, lParam)
 	return ret
 }

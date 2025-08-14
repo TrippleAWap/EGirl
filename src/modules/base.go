@@ -37,6 +37,7 @@ type Module struct {
 	Description string
 
 	KeyBind rune
+	Enabled bool
 
 	Options map[string]ModuleOption
 
@@ -53,15 +54,27 @@ var (
 	AfterStartupFuncs []func()
 )
 
+func ToggleModule(m *Module) {
+	m.Enabled = !m.Enabled
+	if m.Enabled {
+		if m.OnEnable != nil {
+			m.OnEnable(m)
+		}
+	} else {
+		if m.OnDisable != nil {
+			m.OnDisable(m)
+		}
+	}
+}
+
 func RegisterHandles() {
 	go func() {
 		defer helpers.PanicDisplay()
 		for {
 			for _, m := range modules {
-				if m.OnTick == nil {
-					continue
+				if m.OnTick != nil {
+					m.OnTick(m)
 				}
-				m.OnTick(m)
 			}
 			time.Sleep(time.Millisecond * 20)
 		}
@@ -87,8 +100,8 @@ func RegisterModule(module *Module) {
 		module.Description,
 		module.Category,
 	)
-	modules = append(modules, module)
 
+	modules = append(modules, module)
 }
 
 func FormatName(name string) string {
