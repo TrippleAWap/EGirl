@@ -56,12 +56,12 @@ func keyboardCallback(nCode int, wParam uintptr, lParam uintptr) uintptr {
 		kb := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
 		r := rune(kb.VkCode)
 		shouldToggle := false
-		if wParam == WM_KEYUP {
+		if wParam == WM_KEYUP && keystates[kb.VkCode] != true {
 			keystates[kb.VkCode] = true
-			shouldToggle = true
 		}
-		if wParam == WM_KEYDOWN {
+		if wParam == WM_KEYDOWN && keystates[kb.VkCode] != false {
 			keystates[kb.VkCode] = false
+			shouldToggle = true
 		}
 		if shouldToggle {
 			for _, m := range modules {
