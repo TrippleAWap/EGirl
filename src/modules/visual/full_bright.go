@@ -24,17 +24,19 @@ func init() {
 			Version:     "v1.0.0",
 			Description: "meow meow fullbright",
 			KeyBind:     'K',
-			OnTick: func(module *modules.Module) {
-				if module.Enabled {
-					if err := memory.GlobalManager.Write(brightnessPtr, float32(10)); err != nil {
-						helpers.LogF("failed to set brightness value: %+v\n", err)
-					}
+			OnDisable: func(module *modules.Module) {
+				if err := memory.GlobalManager.Restore(brightnessPtr); err != nil {
+					helpers.LogF("failed to restore brightness value: %+v\n", err)
 				} else {
-					if err := memory.GlobalManager.Write(brightnessPtr, float32(1)); err != nil {
-						helpers.LogF("failed to set brightness value: %+v\n", err)xxx
-					}
+					helpers.LogF("Restored Brightness!\n")
 				}
 			},
+			OnTick: func(module *modules.Module) {
+				if err := memory.GlobalManager.Write(brightnessPtr, float32(10)); err != nil {
+					helpers.LogF("failed to set brightness value: %+v\n", err)
+				}
+			},
+			Enabled: true,
 		})
 	}
 	modules.AfterStartup(modFunction)

@@ -42,20 +42,34 @@ type Module struct {
 	Options map[string]ModuleOption
 
 	ArrayListRenderer ModArrayListRendererDelegate
-	IsRelevant        ModIsRelevantDelegate
+	IsRelevantH       ModIsRelevantDelegate
 
 	OnTick    ModVoidDelegate
 	OnEnable  ModVoidDelegate
 	OnDisable ModVoidDelegate
+
+	init bool
 }
 
-var (
-	modules           []*Module
-	AfterStartupFuncs []func()
-)
+func (m *Module) Init() {
+	if m.init {
+		return
+	}
+	m.SetActive(m.Enabled)
+	helpers.LogF("Initialized %s!\n", m.Name)
+	m.init = true
+}
 
-func ToggleModule(m *Module) {
-	m.Enabled = !m.Enabled
+func (m *Module) IsRelevant() bool {
+	if m.IsRelevantH != nil {
+		return m.IsRelevantH(m)
+	}
+	return true
+}
+
+func (m *Module) SetActive(state bool) {
+	m.Enabled = state
+	helpers.LogF("Toggled '%s' to %+v!\n", m.Name, state)
 	if m.Enabled {
 		if m.OnEnable != nil {
 			m.OnEnable(m)
@@ -67,16 +81,22 @@ func ToggleModule(m *Module) {
 	}
 }
 
+var (
+	modules           []*Module
+	AfterStartupFuncs []func()
+)
+
 func RegisterHandles() {
 	go func() {
 		defer helpers.PanicDisplay()
 		for {
 			for _, m := range modules {
-				if m.OnTick != nil {
+				m.Init()
+				if m.Enabled && m.OnTick != nil {
 					m.OnTick(m)
 				}
 			}
-			time.Sleep(time.Millisecond * 20)
+			time.Sleep(time.Millisecond * 50)
 		}
 	}()
 
@@ -94,13 +114,13 @@ func RegisterModule(module *Module) {
 	module.Category = categoryName
 	module.Name = moduleName
 	helpers.LogF(
-		"\n\tRegistering '%s'\n\t\tAuthor '%s'\n\t\tDescription '%s'\n\t\tCategory '%s'\n",
+		"\n\tRegistering '%s'\n\t\tAuthor '%s'\n\t\tDescription '%s'\n\t\tCategory '%s'\n\t\tKeyBind '%s'\n",
 		module.Name,
 		module.Author,
 		module.Description,
 		module.Category,
+		string(module.KeyBind),
 	)
-
 	modules = append(modules, module)
 }
 

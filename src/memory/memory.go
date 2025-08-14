@@ -50,8 +50,14 @@ func (m *Manager) OpenProcess(pid int) error {
 	}
 	return nil
 }
-
 func (m *Manager) Read(address uintptr, output any) error {
+	err := m.read(address, output)
+	if err != nil && err.Error() == "Access is denied." {
+		panic("Minecraft.Windows.exe was terminated!")
+	}
+	return err
+}
+func (m *Manager) read(address uintptr, output any) error {
 	rv := reflect.ValueOf(output)
 	if rv.Kind() != reflect.Ptr {
 		return errors.New("output must be a pointer to struct")
@@ -172,16 +178,19 @@ func setFloat64FromBytes(v reflect.Value, elem reflect.Value) error {
 	elem.SetFloat(f)
 	return nil
 }
-
 func (m *Manager) Write(address uintptr, data any) error {
+	err := m.write(address, data)
+	if err != nil && err.Error() == "Access is denied." {
+		panic("Minecraft.Windows.exe was terminated!")
+	}
+	return err
+}
+func (m *Manager) write(address uintptr, data any) error {
 	dataB := InterfaceToBytes(data)
 	size := uintptr(len(dataB))
 	if _, ok := m.MemoryPatches[address]; !ok {
 		output := make([]byte, size)
 		if err := m.Read(address, &output); err != nil {
-			if err.Error() == "Access is denied." {
-				panic("Minecraft.Windows.exe was terminated!")
-			}
 			return err
 		}
 		m.MemoryPatches[address] = output
@@ -194,6 +203,7 @@ func (m *Manager) Write(address uintptr, data any) error {
 	if err := windows.WriteProcessMemory(m.HProcess, address, &dataB[0], size, &write); err != nil {
 		return err
 	}
+
 	if err := windows.VirtualProtectEx(m.HProcess, address, size, oldProtection, &oldProtection); err != nil {
 		return err
 	}

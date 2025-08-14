@@ -48,18 +48,25 @@ type KBDLLHOOKSTRUCT struct {
 	DwExtraInfo uintptr
 }
 
+var keystates = make([]bool, 0xFE)
+
 func keyboardCallback(nCode int, wParam uintptr, lParam uintptr) uintptr {
 	go UpdateOnTargetWindow()
-	if onTargetWindow && nCode >= 0 && wParam == WM_KEYUP {
+	if onTargetWindow && nCode >= 0 {
 		kb := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
 		r := rune(kb.VkCode)
-		if printableASCII(r) {
-			keyChar := string(r)
-			helpers.LogF("%s\n", keyChar)
+		shouldToggle := false
+		if wParam == WM_KEYUP {
+			keystates[kb.VkCode] = true
+			shouldToggle = true
+		}
+		if wParam == WM_KEYDOWN {
+			keystates[kb.VkCode] = false
+		}
+		if shouldToggle {
 			for _, m := range modules {
-				if m.KeyBind == r {
-					helpers.LogF("%s: %s \n", m.Name, m.Enabled)
-					ToggleModule(m)
+				if m.IsRelevant() && m.KeyBind == r {
+					m.SetActive(!m.Enabled)
 				}
 			}
 		}

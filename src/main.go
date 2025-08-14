@@ -54,7 +54,8 @@ func main() {
 	baseModule, err := memory.GetBaseModule(targetPID)
 	if err != nil {
 		helpers.LogF("We've encountered an error while getting the base module. | %+v\n", err.Error())
-		os.Exit(1)
+		main()
+		return
 	}
 	f, err := fileversion.New(windows.UTF16ToString(baseModule.ExePath[:]))
 	if err != nil {
@@ -83,7 +84,6 @@ func main() {
 		os.Exit(1)
 	}
 	helpers.LogF("Process memory loaded successfully.\n")
-
 	for _, f := range modules.AfterStartupFuncs {
 		go f()
 	}
