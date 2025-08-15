@@ -1,7 +1,7 @@
+github.com/AllenDang/cimgui-go v1.3.1 h1:2f33a7GHJwRofH0CRQbUTXywazfph/K5LQLKyOBv24k=
+github.com/AllenDang/cimgui-go v1.3.1/go.mod h1:Fuj3G2E3zd2bMQxmhuSPSFFl41MwS+MhyZ6DHgYq/YM=
 github.com/bi-zone/go-fileversion v1.0.0 h1:N/sorBKYfWDjT5ySlUOxSJvG3g9XiaBKxXgHGfH5Wf8=
 github.com/bi-zone/go-fileversion v1.0.0/go.mod h1:evMpx4TA/iTAtufWYK271/Mbr5JAL24vlu1WNjVef6s=
-golang.org/x/sys v0.27.0 h1:wBqf8DvsY9Y/2P8gAfPDEYNuS30J4lPHJxXSb/nJZ+s=
-golang.org/x/sys v0.27.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
 golang.org/x/sys v0.35.0 h1:vz1N37gP5bs89s7He8XuIYXpyY0+QlsKmzipCbUtyxI=
 golang.org/x/sys v0.35.0/go.mod h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k=
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7 h1:9zdDQZ7Thm29KFXgAX/+yaf3eVbP7djjWp/dXAppNCc=

@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"EGirl/helpers"
 	"golang.org/x/sys/windows"
 	"strings"
 	"syscall"
@@ -14,7 +15,6 @@ var (
 	procCallNextHookEx   = user32.NewProc("CallNextHookEx")
 	procGetMessage       = user32.NewProc("GetMessageW")
 	keyboardHook         uintptr
-	targetWindowHWND     windows.HWND
 	onTargetWindow       = true
 	getForegroundWindow  = user32.NewProc("GetForegroundWindow")
 	getWindowTextW       = user32.NewProc("GetWindowTextW")
@@ -22,19 +22,16 @@ var (
 )
 
 func GetForegroundWindowTitle() (string, error) {
-	// Get handle of the foreground window
 	hwnd, _, _ := getForegroundWindow.Call()
 	if hwnd == 0 {
-		return "", nil // no foreground window
+		return "", nil
 	}
 
-	// Get window title length
 	textLen, _, _ := getWindowTextLengthW.Call(hwnd)
 	if textLen == 0 {
-		return "", nil // no title
+		return "", nil
 	}
 
-	// Get window title
 	buf := make([]uint16, textLen+1)
 	getWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
 	return windows.UTF16ToString(buf), nil
@@ -70,7 +67,7 @@ type KBDLLHOOKSTRUCT struct {
 var KeyMap = make([]bool, 0xFE)
 
 func keyboardCallback(nCode int, wParam uintptr, lParam uintptr) uintptr {
-	if onTargetWindow && nCode >= 0 {
+	if onTargetWindow && nCode >= 0 && !helpers.IsMouseVisible() {
 		kb := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
 		r := rune(kb.VkCode)
 		shouldToggle := false

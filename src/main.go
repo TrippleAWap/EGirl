@@ -103,6 +103,7 @@ func main() {
 }
 
 func debug() {
+	return
 	for {
 		helpers.LogF("%v\n", runtime.NumGoroutine())
 
