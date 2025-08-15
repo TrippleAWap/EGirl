@@ -4,6 +4,7 @@ import (
 	"EGirl/helpers"
 	"EGirl/memory"
 	"EGirl/modules"
+	"math"
 	"time"
 )
 
@@ -25,17 +26,40 @@ func init() {
 			Description: "meow zoom",
 			KeyBind:     'C',
 			OnDisable: func(module *modules.Module) {
-				var fovOA float32
+				var fovOriginal float32
+				var fovCurrent float32
 
-				if err := memory.GlobalManager.Original(FOVPtr, &fovOA); err != nil {
+				if err := memory.GlobalManager.Original(FOVPtr, &fovOriginal); err != nil {
 					helpers.LogF("failed to restore FOV value: %+v\n", err)
-				} else {
-					helpers.LogF("Restored FOV!\n")
+					return
+				}
+				if err := memory.GlobalManager.Read(FOVPtr, &fovCurrent); err != nil {
+					helpers.LogF("failed to read FOV value: %+v\n", err)
+					return
+				}
+				diff := float32(math.Abs(float64(fovOriginal - fovCurrent)))
+				helpers.LogF("%v, %v-%v\n", diff, fovOriginal, fovCurrent)
+				smoothingMS := 200
+				if err := memory.GlobalManager.SmoothWrite(FOVPtr, fovCurrent, diff/float32(smoothingMS), smoothingMS, time.Millisecond); err != nil {
+					helpers.LogF("failed to smooth FOV value: %+v\n", err)
+				}
+				if err := memory.GlobalManager.Restore(FOVPtr); err != nil {
+					helpers.LogF("failed to restore FOV value: %+v\n", err)
 				}
 			},
 			OnTick: func(module *modules.Module) {
-				if err := memory.GlobalManager.Write(FOVPtr, float32(10)); err != nil {
-					helpers.LogF("failed to set FOV value: %+v\n", err)
+				targetFov := float32(10)
+				var fovCurrent float32
+				if err := memory.GlobalManager.Read(FOVPtr, &fovCurrent); err != nil {
+					helpers.LogF("failed to read FOV value: %+v\n", err)
+					return
+				}
+				if fovCurrent != targetFov {
+					diff := targetFov - fovCurrent
+					smoothingMS := 50
+					if err := memory.GlobalManager.SmoothWrite(FOVPtr, fovCurrent, diff/float32(smoothingMS), smoothingMS, time.Millisecond); err != nil {
+						helpers.LogF("failed to move FOV value: %+v\n", err)
+					}
 				}
 				if !modules.KeyMap[module.KeyBind] {
 					module.SetActive(false)

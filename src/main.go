@@ -105,7 +105,6 @@ func main() {
 func debug() {
 	for {
 		helpers.LogF("%v\n", runtime.NumGoroutine())
-		helpers.LogF("%v\n", runtime.NumCPU())
 
 		time.Sleep(time.Second)
 	}

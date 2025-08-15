@@ -58,26 +58,10 @@ func (m *Manager) Read(address uintptr, output any) error {
 	return err
 }
 func (m *Manager) read(address uintptr, output any) error {
-	rv := reflect.ValueOf(output)
-	if rv.Kind() != reflect.Ptr {
-		return errors.New("output must be a pointer to struct")
+	size, err := SizeOfInterface(output)
+	if err != nil {
+		return err
 	}
-	elem := rv.Elem()
-	if !elem.CanSet() {
-		return errors.New("output is not settable")
-	}
-
-	var size uintptr
-	k := elem.Kind()
-	switch k {
-	case reflect.Slice:
-		size = uintptr(elem.Len())
-	case reflect.Array:
-		size = uintptr(elem.Len())
-	default:
-		size = elem.Type().Size()
-	}
-
 	buffer := make([]byte, size)
 	var read uintptr
 	if err := windows.ReadProcessMemory(m.HProcess, address, &buffer[0], size, &read); err != nil {
@@ -87,7 +71,7 @@ func (m *Manager) read(address uintptr, output any) error {
 		return windows.ERROR_PARTIAL_COPY
 	}
 
-	return m.ParseBytes(buffer, output)
+	return ReadBytesOut(buffer, output)
 }
 
 func setUintptrFromBytes(v reflect.Value, elem reflect.Value) error {
@@ -176,6 +160,8 @@ func (m *Manager) write(address uintptr, data any) error {
 		}
 		m.MemoryPatches[address] = output
 	}
+	//helpers.LogF("0%X, %d, %+v %T\n", address, size, data, data)
+
 	var oldProtection uint32
 	if err := windows.VirtualProtectEx(m.HProcess, address, size, windows.PAGE_EXECUTE_READWRITE, &oldProtection); err != nil {
 		return err
@@ -257,34 +243,25 @@ func (m *Manager) Restore(address uintptr) error {
 }
 
 func (m *Manager) Original(address uintptr, output any) error {
-	if _, ok := m.MemoryPatches[address]; !ok {
+	v, ok := m.MemoryPatches[address]
+	if !ok {
 		return fmt.Errorf("address not patched: 0x%x", address)
 	}
 
-	return m.Read(address, output)
+	return ReadBytesOut(v, output)
 }
 
-func (m *Manager) ParseBytes(buffer []byte, output any) error {
-	rv := reflect.ValueOf(output)
-	if rv.Kind() != reflect.Ptr {
-		return errors.New("output must be a pointer to struct")
+func ReadBytesOut(buffer []byte, output any) error {
+	size, err := SizeOfInterface(output)
+	if err != nil {
+		return err
 	}
+	rv := reflect.ValueOf(output)
 	elem := rv.Elem()
 	if !elem.CanSet() {
 		return errors.New("output is not settable")
 	}
-
-	var size uintptr
 	k := elem.Kind()
-	switch k {
-	case reflect.Slice:
-		size = uintptr(elem.Len())
-	case reflect.Array:
-		size = uintptr(elem.Len())
-	default:
-		size = elem.Type().Size()
-	}
-
 	v := reflect.ValueOf(buffer).Slice(0, int(size))
 	switch k {
 	case reflect.Uintptr:
@@ -303,6 +280,29 @@ func (m *Manager) ParseBytes(buffer []byte, output any) error {
 		elem.Set(v)
 	}
 	return nil
+}
+
+func SizeOfInterface(T any) (uintptr, error) {
+	rv := reflect.ValueOf(T)
+	if rv.Kind() != reflect.Ptr {
+		return 0, errors.New("output must be a pointer to struct")
+	}
+	elem := rv.Elem()
+	if !elem.CanSet() {
+		return 0, errors.New("output is not settable")
+	}
+
+	var size uintptr
+	k := elem.Kind()
+	switch k {
+	case reflect.Slice:
+		size = uintptr(elem.Len())
+	case reflect.Array:
+		size = uintptr(elem.Len())
+	default:
+		size = elem.Type().Size()
+	}
+	return size, nil
 }
 
 func (m *Manager) Cleanup() error {
