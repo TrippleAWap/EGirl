@@ -67,14 +67,14 @@ type KBDLLHOOKSTRUCT struct {
 var KeyMap = make([]bool, 0xFE)
 
 func keyboardCallback(nCode int, wParam uintptr, lParam uintptr) uintptr {
-	if onTargetWindow && nCode >= 0 && !helpers.IsMouseVisible() {
+	if onTargetWindow && nCode >= 0 {
 		kb := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
 		r := rune(kb.VkCode)
 		shouldToggle := false
 		if wParam == WM_KEYUP && KeyMap[kb.VkCode] != false {
 			KeyMap[kb.VkCode] = false
 		}
-		if wParam == WM_KEYDOWN && KeyMap[kb.VkCode] != true {
+		if wParam == WM_KEYDOWN && KeyMap[kb.VkCode] != true && !helpers.IsMouseVisible() {
 			KeyMap[kb.VkCode] = true
 			shouldToggle = true
 		}
