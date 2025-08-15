@@ -56,7 +56,7 @@ func init() {
 				}
 				if fovCurrent != targetFov {
 					diff := targetFov - fovCurrent
-					smoothingMS := 50
+					smoothingMS := 200
 					if err := memory.GlobalManager.SmoothWrite(FOVPtr, fovCurrent, diff/float32(smoothingMS), smoothingMS, time.Millisecond); err != nil {
 						helpers.LogF("failed to move FOV value: %+v\n", err)
 					}

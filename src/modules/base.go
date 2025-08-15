@@ -96,7 +96,7 @@ func RegisterHandles() {
 					m.OnTick(m)
 				}
 			}
-			time.Sleep(time.Millisecond * 50)
+			time.Sleep(time.Millisecond * 20)
 		}
 	}()
 

@@ -1,8 +1,8 @@
 package modules
 
 import (
-	"EGirl/helpers"
 	"golang.org/x/sys/windows"
+	"strings"
 	"syscall"
 	"time"
 	"unsafe"
@@ -16,19 +16,38 @@ var (
 	keyboardHook         uintptr
 	targetWindowHWND     windows.HWND
 	onTargetWindow       = true
+	getForegroundWindow  = user32.NewProc("GetForegroundWindow")
+	getWindowTextW       = user32.NewProc("GetWindowTextW")
+	getWindowTextLengthW = user32.NewProc("GetWindowTextLengthW")
 )
+
+func GetForegroundWindowTitle() (string, error) {
+	// Get handle of the foreground window
+	hwnd, _, _ := getForegroundWindow.Call()
+	if hwnd == 0 {
+		return "", nil // no foreground window
+	}
+
+	// Get window title length
+	textLen, _, _ := getWindowTextLengthW.Call(hwnd)
+	if textLen == 0 {
+		return "", nil // no title
+	}
+
+	// Get window title
+	buf := make([]uint16, textLen+1)
+	getWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+	return windows.UTF16ToString(buf), nil
+}
 
 func UpdateOnTargetWindow() {
 	for {
-		if targetWindowHWND == 0 {
-			targetWindowHWNDi, err := helpers.FindWindow("Minecraft")
-			if err != nil {
-				panic(err)
-			}
-			targetWindowHWND = targetWindowHWNDi
+		title, err := GetForegroundWindowTitle()
+		if err != nil {
+			panic(err)
 		}
-		foreground := windows.GetForegroundWindow()
-		onTargetWindow = targetWindowHWND == foreground
+		title = strings.ToLower(strings.TrimSpace(title))
+		onTargetWindow = strings.Contains(title, "minecraft")
 		time.Sleep(time.Millisecond * 5)
 	}
 }
