@@ -48,19 +48,18 @@ type KBDLLHOOKSTRUCT struct {
 	DwExtraInfo uintptr
 }
 
-var keystates = make([]bool, 0xFE)
+var KeyMap = make([]bool, 0xFE)
 
 func keyboardCallback(nCode int, wParam uintptr, lParam uintptr) uintptr {
-	go UpdateOnTargetWindow()
 	if onTargetWindow && nCode >= 0 {
 		kb := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lParam))
 		r := rune(kb.VkCode)
 		shouldToggle := false
-		if wParam == WM_KEYUP && keystates[kb.VkCode] != true {
-			keystates[kb.VkCode] = true
+		if wParam == WM_KEYUP && KeyMap[kb.VkCode] != false {
+			KeyMap[kb.VkCode] = false
 		}
-		if wParam == WM_KEYDOWN && keystates[kb.VkCode] != false {
-			keystates[kb.VkCode] = false
+		if wParam == WM_KEYDOWN && KeyMap[kb.VkCode] != true {
+			KeyMap[kb.VkCode] = true
 			shouldToggle = true
 		}
 		if shouldToggle {
@@ -80,7 +79,7 @@ func keyboardCallback(nCode int, wParam uintptr, lParam uintptr) uintptr {
 // https://learn.microsoft.com/en-us/windows/win32/inputdev/raw-input
 // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getrawinputdevicelist
 func initializeKeyHook() {
-	//go UpdateOnTargetWindow()
+	go UpdateOnTargetWindow()
 	keyboardHook, _, _ = procSetWindowsHookEx.Call(
 		WH_KEYBOARD_LL,
 		syscall.NewCallback(keyboardCallback),

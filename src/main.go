@@ -10,6 +10,7 @@ import (
 	"golang.org/x/sys/windows"
 	"os"
 	"os/signal"
+	"runtime"
 	"slices"
 	"sync"
 	"time"
@@ -37,6 +38,7 @@ func init() {
 }
 
 func main() {
+	go debug()
 	defer helpers.PanicDisplay()
 	targetPID := -1
 	var err error
@@ -98,4 +100,13 @@ func main() {
 	}()
 
 	wg.Wait()
+}
+
+func debug() {
+	for {
+		helpers.LogF("%v\n", runtime.NumGoroutine())
+		helpers.LogF("%v\n", runtime.NumCPU())
+
+		time.Sleep(time.Second)
+	}
 }

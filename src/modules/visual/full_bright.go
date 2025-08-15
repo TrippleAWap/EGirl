@@ -36,7 +36,7 @@ func init() {
 					helpers.LogF("failed to set brightness value: %+v\n", err)
 				}
 			},
-			Enabled: true,
+			Enabled: false,
 		})
 	}
 	modules.AfterStartup(modFunction)

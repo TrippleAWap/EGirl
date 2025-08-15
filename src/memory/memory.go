@@ -78,8 +78,6 @@ func (m *Manager) read(address uintptr, output any) error {
 		size = elem.Type().Size()
 	}
 
-	//LogF("0%X, %d, %s\n", address, size, k.String())
-
 	buffer := make([]byte, size)
 	var read uintptr
 	if err := windows.ReadProcessMemory(m.HProcess, address, &buffer[0], size, &read); err != nil {
@@ -89,24 +87,7 @@ func (m *Manager) read(address uintptr, output any) error {
 		return windows.ERROR_PARTIAL_COPY
 	}
 
-	v := reflect.ValueOf(buffer).Slice(0, int(size))
-	switch k {
-	case reflect.Uintptr:
-		if err := setUintptrFromBytes(v, elem); err != nil {
-			return err
-		}
-	case reflect.Float64:
-		if err := setFloat64FromBytes(v, elem); err != nil {
-			return err
-		}
-	case reflect.Float32:
-		if err := setFloat32FromBytes(v, elem); err != nil {
-			return err
-		}
-	default:
-		elem.Set(v)
-	}
-	return nil
+	return m.ParseBytes(buffer, output)
 }
 
 func setUintptrFromBytes(v reflect.Value, elem reflect.Value) error {
@@ -272,6 +253,55 @@ func (m *Manager) Restore(address uintptr) error {
 		return err
 	}
 	delete(m.MemoryPatches, address)
+	return nil
+}
+
+func (m *Manager) Original(address uintptr, output any) error {
+	if _, ok := m.MemoryPatches[address]; !ok {
+		return fmt.Errorf("address not patched: 0x%x", address)
+	}
+
+	return m.Read(address, output)
+}
+
+func (m *Manager) ParseBytes(buffer []byte, output any) error {
+	rv := reflect.ValueOf(output)
+	if rv.Kind() != reflect.Ptr {
+		return errors.New("output must be a pointer to struct")
+	}
+	elem := rv.Elem()
+	if !elem.CanSet() {
+		return errors.New("output is not settable")
+	}
+
+	var size uintptr
+	k := elem.Kind()
+	switch k {
+	case reflect.Slice:
+		size = uintptr(elem.Len())
+	case reflect.Array:
+		size = uintptr(elem.Len())
+	default:
+		size = elem.Type().Size()
+	}
+
+	v := reflect.ValueOf(buffer).Slice(0, int(size))
+	switch k {
+	case reflect.Uintptr:
+		if err := setUintptrFromBytes(v, elem); err != nil {
+			return err
+		}
+	case reflect.Float64:
+		if err := setFloat64FromBytes(v, elem); err != nil {
+			return err
+		}
+	case reflect.Float32:
+		if err := setFloat32FromBytes(v, elem); err != nil {
+			return err
+		}
+	default:
+		elem.Set(v)
+	}
 	return nil
 }
 
