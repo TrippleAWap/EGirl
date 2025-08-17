@@ -37,3 +37,9 @@ func PanicDisplay() {
 		os.Exit(1)
 	}
 }
+
+func Check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
