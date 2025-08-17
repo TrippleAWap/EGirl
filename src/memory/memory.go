@@ -50,6 +50,25 @@ func (m *Manager) OpenProcess(pid int) error {
 	}
 	return nil
 }
+
+type ReadConfig struct {
+	Address uintptr
+	Output  any
+}
+
+func (m *Manager) ReadConfig(config ReadConfig) error {
+	return m.Read(config.Address, config.Output)
+}
+
+func (m *Manager) ReadConfigs(configs []ReadConfig) error {
+	for _, config := range configs {
+		if err := m.ReadConfig(config); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (m *Manager) Read(address uintptr, output any) error {
 	err := m.read(address, output)
 	if err != nil && err.Error() == "Access is denied." {
@@ -57,6 +76,7 @@ func (m *Manager) Read(address uintptr, output any) error {
 	}
 	return err
 }
+
 func (m *Manager) read(address uintptr, output any) error {
 	size, err := SizeOfInterface(output)
 	if err != nil {
@@ -339,3 +359,29 @@ func InterfaceToBytes(V any) []byte {
 }
 
 var GlobalManager = Manager{}
+
+type PtrConfig struct {
+	Base    uintptr
+	Chain   []uintptr
+	AddOff  uintptr
+	StoreTo *uintptr
+}
+
+func (m *Manager) ReadPtrConfig(config PtrConfig) error {
+	ptr, err := m.ReadPointer(config.Base, config.Chain)
+	if err != nil {
+		return err
+	}
+	ptr += config.AddOff
+	*config.StoreTo = ptr
+	return nil
+}
+
+func (m *Manager) ReadPtrConfigs(configs []PtrConfig) error {
+	for _, config := range configs {
+		if err := m.ReadPtrConfig(config); err != nil {
+			return err
+		}
+	}
+	return nil
+}
