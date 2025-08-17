@@ -69,7 +69,9 @@ func (m *Module) IsRelevant() bool {
 
 func (m *Module) SetActive(state bool) {
 	m.Enabled = state
-	helpers.LogF("Toggled '%s' to %+v!\n", m.Name, state)
+	if m.init {
+		helpers.LogF("Toggled '%s' to %+v!\n", m.Name, state)
+	}
 	if m.Enabled {
 		if m.OnEnable != nil {
 			m.OnEnable(m)

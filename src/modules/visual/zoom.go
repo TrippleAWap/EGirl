@@ -21,7 +21,7 @@ func init() {
 			return
 		}
 		modules.RegisterModule(&modules.Module{
-			Author:      "spot",
+			Author:      "spot & TrippleAWap",
 			Version:     "v1.0.0",
 			Description: "meow zoom",
 			KeyBind:     'C',

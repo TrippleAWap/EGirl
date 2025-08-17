@@ -21,7 +21,7 @@ func init() {
 		defer helpers.PanicDisplay()
 
 		modules.RegisterModule(&modules.Module{
-			Author:      "spot",
+			Author:      "spot & TrippleAWap",
 			Version:     "v1.0.0",
 			Description: "meow coords",
 			OnTick: func(module *modules.Module) {
@@ -36,7 +36,7 @@ func init() {
 
 				helpers.LogF("%v %v %v\n", x, y, z)
 			},
-			Enabled: true,
+			Enabled: false,
 		})
 	}
 	modules.AfterStartup(modFunction)
