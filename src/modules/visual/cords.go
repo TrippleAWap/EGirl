@@ -21,9 +21,9 @@ func init() {
 		defer helpers.PanicDisplay()
 
 		modules.RegisterModule(&modules.Module{
-			Author:      "TrippleAWap",
+			Author:      "spot",
 			Version:     "v1.0.0",
-			Description: "meow meow fullbright",
+			Description: "meow coords",
 			OnTick: func(module *modules.Module) {
 				if err := fixPtrs(); err != nil {
 					return
